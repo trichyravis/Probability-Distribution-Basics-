@@ -332,6 +332,17 @@ def stat_chip_row(items):
             )
 
 
+def prob_card(n, title, setup, formula, answer):
+    """Render one solved-problem card (used by every distribution page)."""
+    st.markdown(
+        f"<div class='ex-box'><span class='head'>Problem {n}. {title}</span><br>"
+        f"<b>Setup:</b> {setup}<br>"
+        f"<b>Excel:</b> <code>{formula}</code><br>"
+        f"<b>Answer:</b> {answer}</div>",
+        unsafe_allow_html=True,
+    )
+
+
 def mp_plot_layout(fig, title, xaxis="x", yaxis="y", height=420):
     fig.update_layout(
         title=dict(text=title, font=dict(family="Playfair Display", size=18, color=DARKBLUE)),
@@ -632,6 +643,32 @@ def page_bernoulli():
            f"<br><b>Std Dev</b>: <code>=SQRT({p}*{1-p})</code> → {math.sqrt(p*(1-p)):.4f}"
            f"<br><b>Simulate one trial</b>: <code>=IF(RAND()&lt;{p},1,0)</code>")
 
+    # ---- 10 SOLVED PROBLEMS ------------------------------------------------
+    section("10 Solved problems (Excel notation) — fixed at p = 0.30")
+    P = 0.30
+    prob_card(1, "P(X = 1)",  "Probability of a success in one trial.",
+              f"=BINOM.DIST(1,1,{P},FALSE)", f"<b>{P:.4f}</b>")
+    prob_card(2, "P(X = 0)",  "Probability of a failure.",
+              f"=BINOM.DIST(0,1,{P},FALSE)", f"<b>{1-P:.4f}</b>")
+    prob_card(3, "Mean",      "Expected value of a single Bernoulli trial.",
+              f"={P}", f"E[X] = <b>{P:.4f}</b>")
+    prob_card(4, "Variance",  "Var(X) = p(1−p).",
+              f"={P}*{1-P}", f"<b>{P*(1-P):.4f}</b>")
+    prob_card(5, "Std deviation", "σ = √(p(1−p)).",
+              f"=SQRT({P}*{1-P})", f"<b>{math.sqrt(P*(1-P)):.4f}</b>")
+    prob_card(6, "Skewness",  "Closed form (1−2p)/√(p(1−p)).",
+              f"=(1-2*{P})/SQRT({P}*{1-P})", f"<b>{(1-2*P)/math.sqrt(P*(1-P)):.4f}</b> (right-skewed)")
+    prob_card(7, "CDF F(0)",  "Cumulative at 0.",
+              f"=BINOM.DIST(0,1,{P},TRUE)", f"<b>{1-P:.4f}</b>")
+    prob_card(8, "CDF F(1)",  "Cumulative at 1 = 1.",
+              f"=BINOM.DIST(1,1,{P},TRUE)", "<b>1.0000</b>")
+    prob_card(9, "Simulate one trial", "Inverse-CDF via RAND.",
+              f"=IF(RAND()&lt;{P},1,0)", "Returns 1 with prob 0.30, else 0.")
+    prob_card(10, "Sum of N independent Bernoullis = Binomial",
+              "If we run N=100 such trials, the count of successes follows Binomial(N=100, p=0.30).",
+              f"=BINOM.DIST(35,100,{P},FALSE)",
+              f"P(X = 35 in 100) = <b>{stats.binom.pmf(35,100,P):.6f}</b>")
+
 
 # ============================================================================
 # PAGE: BINOMIAL
@@ -686,6 +723,45 @@ def page_binomial():
            f"<br><b>Variance</b>: <code>={n}*{p}*{1-p}</code> → {n*p*(1-p):.4f}"
            f"<br><b>Simulate</b>: <code>=BINOM.INV({n}, {p}, RAND())</code>")
 
+    # ---- 10 SOLVED PROBLEMS ------------------------------------------------
+    section("10 Solved problems (Excel notation) — Loan portfolio of n=20, PD=0.10")
+    N, P = 20, 0.10
+    rv = stats.binom(N, P)
+    prob_card(1, "Mean & variance", "Expected number of defaults and its variance.",
+              f"=20*0.10 ; =20*0.10*0.90", f"E[X]=<b>2.0</b>, Var=<b>1.8</b>, σ=<b>{math.sqrt(20*0.10*0.90):.4f}</b>")
+    prob_card(2, "P(X = 0) — zero defaults",
+              "Probability the entire portfolio survives the year.",
+              "=BINOM.DIST(0,20,0.10,FALSE)", f"<b>{rv.pmf(0):.6f}</b>")
+    prob_card(3, "P(X = 2) — exactly 2 defaults",
+              "Most-likely outcome (mode).", "=BINOM.DIST(2,20,0.10,FALSE)",
+              f"<b>{rv.pmf(2):.6f}</b>")
+    prob_card(4, "P(X ≤ 2) — at most 2 defaults",
+              "Cumulative probability up to 2.", "=BINOM.DIST(2,20,0.10,TRUE)",
+              f"<b>{rv.cdf(2):.6f}</b>")
+    prob_card(5, "P(X ≥ 3) — tail-loss event",
+              "1 − P(X ≤ 2). The downside-risk side.",
+              "=1 - BINOM.DIST(2,20,0.10,TRUE)",
+              f"<b>{1-rv.cdf(2):.6f}</b>")
+    prob_card(6, "P(2 ≤ X ≤ 5) — central-mass band",
+              "Range probability via BINOM.DIST.RANGE.",
+              "=BINOM.DIST.RANGE(20,0.10,2,5)",
+              f"<b>{rv.cdf(5)-rv.cdf(1):.6f}</b>")
+    prob_card(7, "95-percentile loss-count VaR",
+              "Inverse CDF — most defaults you would expect at the 95% level.",
+              "=BINOM.INV(20,0.10,0.95)",
+              f"<b>{int(rv.ppf(0.95))}</b> defaults")
+    prob_card(8, "Mode = ⌊(n+1)p⌋",
+              "Closed-form mode of a Binomial.",
+              "=FLOOR((20+1)*0.10,1)",
+              f"<b>{int((N+1)*P)}</b>")
+    prob_card(9, "Normal approximation P(X ≤ 4)",
+              "Use NORM.DIST with μ=np, σ=√(npq) and continuity correction.",
+              "=NORM.DIST(4.5, 2, SQRT(1.8), TRUE)",
+              f"Approx <b>{stats.norm.cdf(4.5, 2, math.sqrt(1.8)):.6f}</b>; exact = <b>{rv.cdf(4):.6f}</b>")
+    prob_card(10, "Simulate one portfolio loss-count",
+              "Inverse-CDF via RAND.", "=BINOM.INV(20,0.10,RAND())",
+              "Returns 0–20; long-run average ≈ 2.")
+
 
 # ============================================================================
 # PAGE: POISSON
@@ -736,6 +812,48 @@ def page_poisson():
            f"<br><b>P(X ≥ k)</b>: <code>=1 - POISSON.DIST(k-1, {lam}, TRUE)</code>"
            f"<br><b>Mean / Variance</b>: <code>={lam}</code>")
 
+    # ---- 10 SOLVED PROBLEMS ------------------------------------------------
+    section("10 Solved problems (Excel notation) — Insurance claims, λ = 4 / day")
+    L = 4
+    rv = stats.poisson(L)
+    prob_card(1, "Mean and variance",
+              "Both equal λ — defining feature of Poisson.",
+              "=4 ; =4", "<b>Mean = Var = 4</b>, σ = <b>2</b>")
+    prob_card(2, "P(X = 0) — quiet day",
+              "Probability of zero claims today.",
+              "=POISSON.DIST(0,4,FALSE)", f"<b>{rv.pmf(0):.6f}</b>")
+    prob_card(3, "P(X = 3) — modal-ish day",
+              "Probability of exactly 3 claims.",
+              "=POISSON.DIST(3,4,FALSE)", f"<b>{rv.pmf(3):.6f}</b>")
+    prob_card(4, "P(X ≤ 2)",
+              "At most 2 claims today.",
+              "=POISSON.DIST(2,4,TRUE)", f"<b>{rv.cdf(2):.6f}</b>")
+    prob_card(5, "P(X ≥ 5) — busy-day risk",
+              "Tail probability used for staffing capacity.",
+              "=1 - POISSON.DIST(4,4,TRUE)",
+              f"<b>{1-rv.cdf(4):.6f}</b>")
+    prob_card(6, "P(2 ≤ X ≤ 6) — central band",
+              "= F(6) − F(1).",
+              "=POISSON.DIST(6,4,TRUE) - POISSON.DIST(1,4,TRUE)",
+              f"<b>{rv.cdf(6)-rv.cdf(1):.6f}</b>")
+    prob_card(7, "Weekly aggregate (λ_week = 28)",
+              "Sum of independent Poissons is Poisson with sum of rates.",
+              "=POISSON.DIST(35,28,TRUE) - POISSON.DIST(20,28,TRUE)",
+              f"P(20 < X ≤ 35) = <b>{stats.poisson.cdf(35,28)-stats.poisson.cdf(20,28):.6f}</b>")
+    prob_card(8, "Mode = ⌊λ⌋",
+              "Closed-form Poisson mode.",
+              "=FLOOR(4,1)", "<b>4</b>")
+    prob_card(9, "Normal approximation P(X ≤ 6)",
+              "When λ ≥ 10, X ≈ Normal(λ, λ); for λ=4 it is rough but illustrative.",
+              "=NORM.DIST(6.5, 4, SQRT(4), TRUE)",
+              f"Approx <b>{stats.norm.cdf(6.5, 4, 2):.6f}</b>; exact <b>{rv.cdf(6):.6f}</b>")
+    prob_card(10, "Operational-risk capital (frequency leg)",
+              "Expected annual claim count and 99.9% VaR claim count "
+              "(use scipy / inverse search; Excel needs an inverse table).",
+              "Use lookup against POISSON.DIST(k,λ_year,TRUE) until 0.999",
+              f"Annual mean = <b>{4*250}</b>, 99.9% VaR claims/year ≈ <b>{int(stats.poisson.ppf(0.999, 4*250))}</b> "
+              "(assuming 250 trading days)")
+
 
 # ============================================================================
 # PAGE: GEOMETRIC
@@ -772,6 +890,38 @@ def page_geometric():
            f"<br><b>Mean</b>: <code>=1/{p}</code> → {1/p:.4f}"
            f"<br><b>Variance</b>: <code>=(1-{p})/{p}^2</code> → {(1-p)/p**2:.4f}"
            f"<br><b>Simulate</b>: <code>=CEILING(LN(1-RAND())/LN(1-{p}),1)</code>")
+
+    # ---- 10 SOLVED PROBLEMS ------------------------------------------------
+    section("10 Solved problems (Excel notation) — Sales calls, p = 0.20 per call")
+    Pp = 0.20
+    rv = stats.geom(Pp)
+    prob_card(1, "P(X = 1)", "Convert on the very first call.",
+              "=0.20*(1-0.20)^(1-1)", f"<b>{rv.pmf(1):.4f}</b>")
+    prob_card(2, "P(X = 3)", "First conversion happens on the 3rd call.",
+              "=0.20*(1-0.20)^(3-1)", f"<b>{rv.pmf(3):.4f}</b>")
+    prob_card(3, "P(X ≤ 5)", "Convert within the first 5 calls.",
+              "=1-(1-0.20)^5", f"<b>{rv.cdf(5):.6f}</b>")
+    prob_card(4, "P(X > 10)", "More than 10 calls without success.",
+              "=(1-0.20)^10", f"<b>{(1-Pp)**10:.6f}</b>")
+    prob_card(5, "Mean number of calls", "1/p = 5 calls on average.",
+              "=1/0.20", "<b>5.0</b>")
+    prob_card(6, "Variance", "(1−p)/p².",
+              "=(1-0.20)/0.20^2", f"<b>{(1-Pp)/Pp**2:.4f}</b>")
+    prob_card(7, "Median number of calls",
+              "Smallest k such that 1−(1−p)^k ≥ 0.5.",
+              "=CEILING(LN(0.5)/LN(1-0.20),1)",
+              f"<b>{math.ceil(math.log(0.5)/math.log(1-Pp))}</b>")
+    prob_card(8, "Memoryless check",
+              "Given 4 failures already, P(2 more failures, then success) = same as starting fresh.",
+              "=(1-0.20)^2 * 0.20",
+              f"<b>{(1-Pp)**2 * Pp:.6f}</b> — independent of history.")
+    prob_card(9, "Simulate one path",
+              "Inverse-CDF for Geometric.",
+              "=CEILING(LN(1-RAND())/LN(1-0.20),1)",
+              "Returns a positive integer; long-run mean = 5.")
+    prob_card(10, "Survival until success",
+              "P(X > 7) = (1-p)^7 — probability salesperson is still pitching after 7 calls.",
+              "=(1-0.20)^7", f"<b>{(1-Pp)**7:.6f}</b>")
 
 
 # ============================================================================
@@ -816,6 +966,35 @@ def page_uniform():
            f"<br><b>Variance</b>: <code>=({b}-{a})^2/12</code>"
            f"<br><b>Simulate U(0,1)</b>: <code>=RAND()</code>"
            f"<br><b>Simulate U({a},{b})</b>: <code>={a}+({b}-{a})*RAND()</code>")
+
+    # ---- 10 SOLVED PROBLEMS ------------------------------------------------
+    section("10 Solved problems (Excel notation) — Loan recovery rate U(10%, 50%)")
+    A_, B_ = 10, 50
+    rv = stats.uniform(A_, B_-A_)
+    prob_card(1, "PDF height", "Constant 1/(b−a) over [a, b].",
+              "=1/(50-10)", "<b>0.025</b>")
+    prob_card(2, "Mean", "(a+b)/2.",
+              "=(10+50)/2", "<b>30</b>%")
+    prob_card(3, "Variance & σ",
+              "(b−a)²/12 and √Var.", "=(50-10)^2/12 ; =(50-10)/SQRT(12)",
+              f"Var = <b>{(B_-A_)**2/12:.4f}</b>, σ = <b>{(B_-A_)/math.sqrt(12):.4f}</b>")
+    prob_card(4, "P(X ≤ 20)", "(20−10)/(50−10).",
+              "=(20-10)/(50-10)", f"<b>{rv.cdf(20):.4f}</b>")
+    prob_card(5, "P(20 ≤ X ≤ 35)",
+              "Length of sub-interval ÷ length of support.",
+              "=(35-20)/(50-10)", f"<b>{rv.cdf(35)-rv.cdf(20):.4f}</b>")
+    prob_card(6, "P(X > 40) — high-recovery", "(50−40)/(50−10).",
+              "=(50-40)/(50-10)", f"<b>{1-rv.cdf(40):.4f}</b>")
+    prob_card(7, "Median",
+              "Symmetric → median = mean.", "=(10+50)/2", "<b>30</b>")
+    prob_card(8, "90th percentile (haircut planning)",
+              "a + α(b−a).", "=10+0.90*(50-10)", f"<b>{rv.ppf(0.90):.2f}</b>")
+    prob_card(9, "Simulate one recovery rate",
+              "Inverse-CDF for Uniform.", "=10+(50-10)*RAND()",
+              "Returns a number in [10, 50]; long-run mean = 30.")
+    prob_card(10, "Expected loss given default",
+              "If LGD = 1 − recovery, E[LGD] = 1 − E[recovery]/100.",
+              "=1 - ((10+50)/2)/100", "<b>0.70</b> = 70%")
 
 
 # ============================================================================
@@ -881,6 +1060,44 @@ def page_normal():
            f"<br><b>Standard Normal inverse</b>: <code>=NORM.S.INV(p)</code>"
            f"<br><b>Simulate</b>: <code>=NORM.INV(RAND(), {mu}, {sigma})</code>")
 
+    # ---- 10 SOLVED PROBLEMS ------------------------------------------------
+    section("10 Solved problems (Excel notation) — Daily P&L μ = 0, σ = 1.5%, MV = ₹10 cr")
+    M_, S_ = 100, 15  # use IQ-style centred example for first set, then VaR set
+    rv = stats.norm(M_, S_)
+    prob_card(1, "P(X ≤ 130) for N(100, 15)",
+              "CDF at 130.", "=NORM.DIST(130,100,15,TRUE)",
+              f"<b>{rv.cdf(130):.6f}</b>")
+    prob_card(2, "P(X > 120)",
+              "1 − CDF.", "=1 - NORM.DIST(120,100,15,TRUE)",
+              f"<b>{1-rv.cdf(120):.6f}</b>")
+    prob_card(3, "P(85 ≤ X ≤ 115) — within ±1σ band",
+              "= F(115) − F(85). Should be ≈ 68%.",
+              "=NORM.DIST(115,100,15,TRUE)-NORM.DIST(85,100,15,TRUE)",
+              f"<b>{rv.cdf(115)-rv.cdf(85):.6f}</b> (≈ 68% rule)")
+    prob_card(4, "Standardise to z",
+              "z = (x − μ)/σ.", "=(130-100)/15 ; =NORM.S.DIST(2,TRUE)",
+              f"z = 2.0; Φ(2) = <b>{stats.norm.cdf(2):.6f}</b>")
+    prob_card(5, "95th percentile",
+              "Inverse CDF at 0.95.", "=NORM.INV(0.95,100,15)",
+              f"<b>{rv.ppf(0.95):.4f}</b>")
+    prob_card(6, "99.5th percentile (right tail)",
+              "Capital VaR-style quantile.", "=NORM.INV(0.995,100,15)",
+              f"<b>{rv.ppf(0.995):.4f}</b>")
+    prob_card(7, "Standard Normal critical z",
+              "z₀.₉₇₅ used in 95% CI.", "=NORM.S.INV(0.975)",
+              f"<b>{stats.norm.ppf(0.975):.4f}</b>")
+    prob_card(8, "1-day 95% VaR (μ=0, σ=1.5%, MV=₹10 cr)",
+              "Parametric VaR = MV·σ·z₀.₉₅.",
+              "=10E7 * 0.015 * NORM.S.INV(0.95)",
+              f"<b>₹{10e7*0.015*stats.norm.ppf(0.95):,.0f}</b>")
+    prob_card(9, "10-day 99% VaR — Basel scaling",
+              "VaR scales with √T and uses 99% quantile.",
+              "=10E7 * 0.015 * SQRT(10) * NORM.S.INV(0.99)",
+              f"<b>₹{10e7*0.015*math.sqrt(10)*stats.norm.ppf(0.99):,.0f}</b>")
+    prob_card(10, "Simulate one daily return",
+              "Inverse-CDF Monte Carlo.", "=NORM.INV(RAND(),0,0.015)",
+              "Returns a normal draw with mean 0, σ = 1.5%.")
+
 
 # ============================================================================
 # PAGE: LOG-NORMAL
@@ -926,6 +1143,48 @@ def page_lognormal():
            f"<br><b>Var(X)</b>: <code>=(EXP({sigma}^2)-1)*EXP(2*{mu}+{sigma}^2)</code> → {var_X:.4f}"
            f"<br><b>GBM stock price</b>: <code>=S0*EXP((r-0.5*v^2)*T + v*SQRT(T)*NORM.S.INV(RAND()))</code>")
 
+    # ---- 10 SOLVED PROBLEMS ------------------------------------------------
+    section("10 Solved problems (Excel notation) — Stock price model μ_lnX = 5, σ_lnX = 0.40")
+    M_, S_ = 5.0, 0.40
+    rv = stats.lognorm(s=S_, scale=math.exp(M_))
+    prob_card(1, "E[X] = exp(μ + σ²/2)",
+              "Mean of a Log-Normal.", f"=EXP({M_}+{S_}^2/2)",
+              f"<b>{math.exp(M_+S_**2/2):.4f}</b>")
+    prob_card(2, "Var(X) = (exp(σ²)−1)·exp(2μ+σ²)",
+              "Variance closed form.",
+              f"=(EXP({S_}^2)-1)*EXP(2*{M_}+{S_}^2)",
+              f"<b>{(math.exp(S_**2)-1)*math.exp(2*M_+S_**2):.4f}</b>")
+    prob_card(3, "Median = exp(μ)",
+              "Median is below the mean (right-skew).",
+              f"=EXP({M_})", f"<b>{math.exp(M_):.4f}</b>")
+    prob_card(4, "Mode = exp(μ − σ²)",
+              "Mode is below the median.",
+              f"=EXP({M_}-{S_}^2)", f"<b>{math.exp(M_-S_**2):.4f}</b>")
+    prob_card(5, "P(X ≤ 200)",
+              "Probability price stays under 200.",
+              f"=LOGNORM.DIST(200,{M_},{S_},TRUE)",
+              f"<b>{rv.cdf(200):.6f}</b>")
+    prob_card(6, "P(X ≥ 150)",
+              "Right-tail probability.",
+              f"=1 - LOGNORM.DIST(150,{M_},{S_},TRUE)",
+              f"<b>{1-rv.cdf(150):.6f}</b>")
+    prob_card(7, "95th percentile",
+              "Inverse CDF.", f"=LOGNORM.INV(0.95,{M_},{S_})",
+              f"<b>{rv.ppf(0.95):.4f}</b>")
+    prob_card(8, "Black-Scholes call PV factor",
+              "Risk-neutral price-implied probability that S_T &gt; K = 150 "
+              "(use μ = ln S₀ + (r − σ²/2)T for risk-neutral).",
+              f"=1 - LOGNORM.DIST(150,{M_},{S_},TRUE)",
+              f"≈ <b>{1-rv.cdf(150):.6f}</b> (illustrative; substitute risk-neutral μ in practice)")
+    prob_card(9, "Simulate one terminal price",
+              "Direct Log-Normal simulator.",
+              f"=LOGNORM.INV(RAND(),{M_},{S_})",
+              "Returns a positive number with the right Log-Normal shape.")
+    prob_card(10, "GBM terminal price (S₀=100, r=5%, σ=20%, T=1)",
+              "Standard Black-Scholes terminal price simulator.",
+              "=100 * EXP((0.05-0.5*0.20^2)*1 + 0.20*SQRT(1)*NORM.S.INV(RAND()))",
+              "Returns one realisation of S_T; average ≈ S₀·exp(rT) = 105.13.")
+
 
 # ============================================================================
 # PAGE: EXPONENTIAL
@@ -966,6 +1225,42 @@ def page_exponential():
            f"<br><b>Survival 1-F(x)</b>: <code>=1 - EXPON.DIST(x, {lam}, TRUE)</code>"
            f"<br><b>Mean</b>: <code>=1/{lam}</code>"
            f"<br><b>Simulate</b>: <code>=-LN(1-RAND())/{lam}</code>")
+
+    # ---- 10 SOLVED PROBLEMS ------------------------------------------------
+    section("10 Solved problems (Excel notation) — λ values vary; credit-hazard examples")
+    rv_05 = stats.expon(scale=1/0.5)
+    prob_card(1, "λ = 0.5/yr: P(X < 2)",
+              "Probability event arrives within 2 years.",
+              "=EXPON.DIST(2,0.5,TRUE)", f"<b>{rv_05.cdf(2):.6f}</b>")
+    prob_card(2, "λ = 0.5/yr: Mean = 1/λ",
+              "Expected waiting time.", "=1/0.5", "<b>2 years</b>")
+    prob_card(3, "λ = 0.5/yr: P(X > 3)",
+              "Survival past 3 years.",
+              "=1 - EXPON.DIST(3,0.5,TRUE)", f"<b>{1-rv_05.cdf(3):.6f}</b>")
+    prob_card(4, "λ = 0.5/yr: Median = ln(2)/λ",
+              "Time by which P(X ≤ t) = 0.5.",
+              "=LN(2)/0.5", f"<b>{math.log(2)/0.5:.4f}</b>")
+    prob_card(5, "Credit hazard λ = 0.03: 5-year survival",
+              "Reduced-form credit risk.",
+              "=1 - EXPON.DIST(5,0.03,TRUE)",
+              f"<b>{math.exp(-5*0.03):.6f}</b>")
+    prob_card(6, "λ = 0.03: 1-year PD",
+              "Default probability over the year.",
+              "=EXPON.DIST(1,0.03,TRUE)",
+              f"<b>{1-math.exp(-0.03):.6f}</b>")
+    prob_card(7, "λ = 1: P(2 < X < 4)",
+              "Probability event occurs between t=2 and t=4.",
+              "=EXPON.DIST(4,1,TRUE) - EXPON.DIST(2,1,TRUE)",
+              f"<b>{stats.expon.cdf(4,scale=1) - stats.expon.cdf(2,scale=1):.6f}</b>")
+    prob_card(8, "λ = 2: variance = 1/λ²",
+              "Variance closed form.", "=1/2^2", "<b>0.25</b>")
+    prob_card(9, "λ = 0.1: 90th percentile",
+              "Quantile at α=0.9.",
+              "=-LN(1-0.9)/0.1", f"<b>{-math.log(1-0.9)/0.1:.4f}</b>")
+    prob_card(10, "Simulate one Exponential(0.5) draw",
+              "Inverse-CDF Monte Carlo.",
+              "=-LN(1-RAND())/0.5",
+              "Returns a positive number; long-run mean = 2.")
 
 
 # ============================================================================
@@ -1138,15 +1433,6 @@ def page_triangular():
 
     # ---- 10 SOLVED PROBLEMS -------------------------------------------------
     section("10 Solved problems (Excel notation)")
-
-    def prob_card(n, title, setup, formula, answer):
-        st.markdown(
-            f"<div class='ex-box'><div class='title'>Problem {n}. {title}</div>"
-            f"<b>Setup:</b> {setup}<br>"
-            f"<b>Excel:</b> <code>{formula}</code><br>"
-            f"<b>Answer:</b> {answer}</div>",
-            unsafe_allow_html=True,
-        )
 
     # Fixed parameters for the practice set — independent of slider so answers are stable
     A, C, B = 10, 15, 30  # ₹ crore project cost example
