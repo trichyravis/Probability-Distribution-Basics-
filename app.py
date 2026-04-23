@@ -1,3 +1,4 @@
+
 """
 ===============================================================================
 THE MOUNTAIN PATH - WORLD OF FINANCE
@@ -347,6 +348,12 @@ def mp_plot_layout(fig, title, xaxis="x", yaxis="y", height=420):
     return fig
 
 
+# -- Author / contact links (update handles here) -----------------------------
+LINKEDIN_URL = "https://www.linkedin.com/in/trichyravis/"
+GITHUB_URL   = "https://github.com/trichyravis"
+EMAIL        = "trichyravis@gmail.com"
+
+
 def footer():
     st.markdown(
         f"""
@@ -354,7 +361,10 @@ def footer():
             <span class="gold">The Mountain Path — World of Finance</span> &nbsp;•&nbsp;
             Prof. V. Ravichandran &nbsp;•&nbsp;
             <i>Bridging Theory with Practice</i> &nbsp;•&nbsp;
-            <span class="gold">themountainpathacademy.com</span>
+            <a href="https://themountainpathacademy.com" target="_blank" style="color:#FFD700;text-decoration:none;">themountainpathacademy.com</a> &nbsp;•&nbsp;
+            <a href="{LINKEDIN_URL}" target="_blank" style="color:#FFD700;text-decoration:none;">LinkedIn</a> &nbsp;•&nbsp;
+            <a href="{GITHUB_URL}" target="_blank" style="color:#FFD700;text-decoration:none;">GitHub</a> &nbsp;•&nbsp;
+            <a href="mailto:{EMAIL}" style="color:#FFD700;text-decoration:none;">{EMAIL}</a>
         </div>
         """,
         unsafe_allow_html=True,
@@ -390,6 +400,7 @@ with st.sidebar:
             "📈 Continuous: Normal",
             "📈 Continuous: Log-Normal",
             "📈 Continuous: Exponential",
+            "📈 Continuous: Triangular",
             "💼 Finance Tools (VaR / GBM)",
             "🧠 Practice Quiz",
             "📋 Excel Master Cheat Sheet",
@@ -958,6 +969,255 @@ def page_exponential():
 
 
 # ============================================================================
+# PAGE: TRIANGULAR
+# ============================================================================
+def page_triangular():
+    page_title(
+        "Triangular Distribution",
+        "Expert-elicited min / mode / max — the workhorse of project finance, cost modelling, and scenario analysis",
+    )
+
+    # ---- DEFINITION ---------------------------------------------------------
+    defn_box(
+        "TRIANGULAR(a, c, b)  —  a ≤ c ≤ b",
+        "A continuous distribution on [a, b] whose density rises linearly to a peak at "
+        "the <b>mode</b> c and then falls linearly to zero at b. Used when only three "
+        "pieces of information are available: a <i>pessimistic</i> minimum (a), a "
+        "<i>most-likely</i> value (c), and an <i>optimistic</i> maximum (b)."
+        "<br><br>"
+        "<b>PDF</b>:&nbsp; "
+        "f(x) = 2(x−a) / [(b−a)(c−a)] &nbsp; for a ≤ x ≤ c<br>"
+        "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "
+        "f(x) = 2(b−x) / [(b−a)(b−c)] &nbsp; for c &lt; x ≤ b<br>"
+        "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 0 otherwise"
+        "<br><br>"
+        "<b>CDF</b>:&nbsp; "
+        "F(x) = (x−a)² / [(b−a)(c−a)] &nbsp; for a ≤ x ≤ c<br>"
+        "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "
+        "F(x) = 1 − (b−x)² / [(b−a)(b−c)] &nbsp; for c &lt; x ≤ b"
+        "<br><br>"
+        "<b>Mean</b> = (a + b + c) / 3 &nbsp;&nbsp;&nbsp; "
+        "<b>Variance</b> = (a² + b² + c² − ab − ac − bc) / 18 &nbsp;&nbsp;&nbsp; "
+        "<b>Mode</b> = c",
+    )
+
+    # ---- PARAMETER INPUTS ---------------------------------------------------
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        a = st.number_input("a — minimum (pessimistic)", -1000.0, 1000.0, 0.0, 0.5)
+    with c2:
+        c = st.number_input("c — mode (most likely)",    -1000.0, 1000.0, 3.0, 0.5)
+    with c3:
+        b = st.number_input("b — maximum (optimistic)",  -1000.0, 1000.0, 10.0, 0.5)
+
+    if not (a <= c <= b) or a == b:
+        st.error("Parameters must satisfy a ≤ c ≤ b and a < b."); return
+
+    # scipy parameterisation: shape = (c-a)/(b-a), loc=a, scale=b-a
+    shape = (c - a) / (b - a)
+    rv = stats.triang(shape, loc=a, scale=(b - a))
+
+    # Grid
+    pad = 0.1 * (b - a)
+    x = np.linspace(a - pad, b + pad, 500)
+    pdf = rv.pdf(x)
+    cdf = rv.cdf(x)
+
+    # ---- SUMMARY STATS ------------------------------------------------------
+    mean_ = (a + b + c) / 3.0
+    var_  = (a**2 + b**2 + c**2 - a*b - a*c - b*c) / 18.0
+    sd_   = math.sqrt(var_) if var_ > 0 else 0.0
+    # median (closed form)
+    if c >= (a + b) / 2:
+        median_ = a + math.sqrt((b - a) * (c - a) / 2.0)
+    else:
+        median_ = b - math.sqrt((b - a) * (b - c) / 2.0)
+    # skewness (closed form)
+    denom = (a**2 + b**2 + c**2 - a*b - a*c - b*c) ** 1.5
+    skew_ = (math.sqrt(2) * (a + b - 2*c) * (2*a - b - c) * (a - 2*b + c)) / (5 * denom) if denom > 0 else 0.0
+
+    stat_chip_row([
+        ("Mean", f"{mean_:.4f}"),
+        ("Median", f"{median_:.4f}"),
+        ("Mode", f"{c:.4f}"),
+        ("Variance", f"{var_:.4f}"),
+        ("Std Dev", f"{sd_:.4f}"),
+        ("Skewness", f"{skew_:.4f}"),
+        ("Range", f"[{a}, {b}]"),
+    ])
+
+    # ---- PROBABILITY QUERY / SHADED REGION ---------------------------------
+    section("Probability query — shade a region")
+    qmode = st.selectbox(
+        "Region",
+        ["None", "P(X ≤ q)", "P(X ≥ q)", "P(q₁ ≤ X ≤ q₂)", "Inverse CDF  —  given α, find q"],
+    )
+    fill_range = None
+    if qmode == "P(X ≤ q)":
+        q = st.slider("q", float(a), float(b), float(c), step=(b - a) / 200)
+        fill_range = (x.min(), q)
+        st.metric("P(X ≤ q)", f"{rv.cdf(q):.6f}")
+    elif qmode == "P(X ≥ q)":
+        q = st.slider("q", float(a), float(b), float(c), step=(b - a) / 200)
+        fill_range = (q, x.max())
+        st.metric("P(X ≥ q)", f"{1 - rv.cdf(q):.6f}")
+    elif qmode == "P(q₁ ≤ X ≤ q₂)":
+        cc1, cc2 = st.columns(2)
+        with cc1:
+            q1 = st.slider("q₁", float(a), float(b), float(a + 0.25*(b-a)), step=(b - a) / 200)
+        with cc2:
+            q2 = st.slider("q₂", float(a), float(b), float(a + 0.75*(b-a)), step=(b - a) / 200)
+        if q2 > q1:
+            fill_range = (q1, q2)
+            st.metric("P(q₁ ≤ X ≤ q₂)", f"{rv.cdf(q2) - rv.cdf(q1):.6f}")
+    elif qmode == "Inverse CDF  —  given α, find q":
+        alpha = st.slider("α (probability)", 0.001, 0.999, 0.5, 0.001)
+        q_alpha = rv.ppf(alpha)
+        st.metric(f"q such that F(q) = {alpha:.3f}", f"{q_alpha:.6f}")
+        fill_range = (x.min(), q_alpha)
+
+    # ---- PLOTS --------------------------------------------------------------
+    show_continuous_plots(
+        x, pdf, cdf,
+        f"Triangular(a={a}, c={c}, b={b}) PDF",
+        f"Triangular(a={a}, c={c}, b={b}) CDF",
+        fill_range,
+    )
+
+    # ---- KEY PROPERTIES -----------------------------------------------------
+    section("Key properties")
+    sum_box(
+        "• <b>Support</b>: bounded on [a, b] — unlike Normal or Log-Normal, no infinite tails.<br>"
+        "• <b>Unimodal & continuous</b>; the density is piecewise-linear (two straight lines meeting at c).<br>"
+        "• <b>Peak density</b> at the mode: f(c) = 2 / (b − a).<br>"
+        "• <b>Symmetric</b> when c = (a + b)/2 (skew = 0); <b>right-skewed</b> when c is near a, <b>left-skewed</b> when c is near b.<br>"
+        "• <b>F(c)</b> = (c − a) / (b − a) — this threshold drives the inverse-CDF branch used in Monte Carlo.<br>"
+        "• <b>Inverse CDF</b>:<br>"
+        "&nbsp;&nbsp;&nbsp;q(u) = a + √(u · (b−a)(c−a)) &nbsp;&nbsp; for &nbsp; u ≤ (c−a)/(b−a)<br>"
+        "&nbsp;&nbsp;&nbsp;q(u) = b − √((1−u) · (b−a)(b−c)) &nbsp;&nbsp; for &nbsp; u &gt; (c−a)/(b−a)"
+    )
+
+    # ---- EXCEL NOTATION -----------------------------------------------------
+    xl_box(
+        "EXCEL NOTATION  (no native TRIANG.DIST — use IF formulas)",
+        f"<b>PDF</b>:<br>"
+        f"<code>=IF(AND(x&gt;={a},x&lt;={c}), 2*(x-{a})/(({b}-{a})*({c}-{a})), "
+        f"IF(AND(x&gt;{c},x&lt;={b}), 2*({b}-x)/(({b}-{a})*({b}-{c})), 0))</code>"
+        f"<br><br><b>CDF</b>:<br>"
+        f"<code>=IF(x&lt;{a},0, IF(x&lt;={c}, (x-{a})^2/(({b}-{a})*({c}-{a})), "
+        f"IF(x&lt;={b}, 1-({b}-x)^2/(({b}-{a})*({b}-{c})), 1)))</code>"
+        f"<br><br><b>Mean</b>: <code>=({a}+{b}+{c})/3</code>"
+        f"<br><b>Variance</b>: <code>=({a}^2+{b}^2+{c}^2-{a}*{b}-{a}*{c}-{b}*{c})/18</code>"
+        f"<br><b>Std Dev</b>: <code>=SQRT(({a}^2+{b}^2+{c}^2-{a}*{b}-{a}*{c}-{b}*{c})/18)</code>"
+        f"<br><b>Peak density f(c)</b>: <code>=2/({b}-{a})</code>"
+        f"<br><b>Threshold F(c)</b>: <code>=({c}-{a})/({b}-{a})</code>"
+        f"<br><br><b>Inverse CDF (quantile at α)</b>:<br>"
+        f"<code>=IF(α&lt;=({c}-{a})/({b}-{a}), "
+        f"{a}+SQRT(α*({b}-{a})*({c}-{a})), "
+        f"{b}-SQRT((1-α)*({b}-{a})*({b}-{c})))</code>"
+        f"<br><br><b>Monte-Carlo simulate one draw</b>  (one RAND call via LET):<br>"
+        f"<code>=LET(u,RAND(), t,({c}-{a})/({b}-{a}), "
+        f"IF(u&lt;=t, {a}+SQRT(u*({b}-{a})*({c}-{a})), "
+        f"{b}-SQRT((1-u)*({b}-{a})*({b}-{c}))))</code>"
+        f"<br><b>PERT-style mean approximation</b>: <code>=({a}+4*{c}+{b})/6</code>  "
+        f"<i>(used in @Risk / Crystal Ball project models — not exact here but popular)</i>",
+    )
+
+    # ---- FINANCE ILLUSTRATION ----------------------------------------------
+    ex_box(
+        "FINANCE ILLUSTRATION — Project cost estimation",
+        f"A project sponsor elicits from engineers: <b>pessimistic</b> cost a = {a}, "
+        f"<b>most-likely</b> c = {c}, <b>optimistic</b> b = {b} (₹ crore). "
+        f"Under a triangular model:<br>"
+        f"• Expected cost E[X] = (a + b + c)/3 = <b>{mean_:.2f}</b>"
+        f"<br>• Std dev = <b>{sd_:.2f}</b> (uncertainty band)"
+        f"<br>• P(cost ≤ c) = <b>{rv.cdf(c):.4f}</b> — probability the project comes in at or below the most-likely estimate"
+        f"<br>• P(cost &gt; {c + 0.25*(b-c):.1f}) = <b>{1 - rv.cdf(c + 0.25*(b-c)):.4f}</b> — right-tail overrun risk"
+        f"<br>• 95th-percentile cost = <b>{rv.ppf(0.95):.2f}</b> — a VaR-style reserve for contingency budgeting."
+    )
+
+    # ---- 10 SOLVED PROBLEMS -------------------------------------------------
+    section("10 Solved problems (Excel notation)")
+
+    def prob_card(n, title, setup, formula, answer):
+        st.markdown(
+            f"<div class='ex-box'><div class='title'>Problem {n}. {title}</div>"
+            f"<b>Setup:</b> {setup}<br>"
+            f"<b>Excel:</b> <code>{formula}</code><br>"
+            f"<b>Answer:</b> {answer}</div>",
+            unsafe_allow_html=True,
+        )
+
+    # Fixed parameters for the practice set — independent of slider so answers are stable
+    A, C, B = 10, 15, 30  # ₹ crore project cost example
+    rvP = stats.triang((C - A) / (B - A), loc=A, scale=(B - A))
+
+    prob_card(
+        1, "Expected value",
+        f"Cost estimates a={A}, c={C}, b={B} (₹ crore). Find E[X].",
+        f"=({A}+{B}+{C})/3",
+        f"E[X] = <b>{(A+B+C)/3:.4f}</b> ₹ crore",
+    )
+    prob_card(
+        2, "Variance & standard deviation",
+        "Using the same a, c, b, find Var(X) and σ.",
+        f"=({A}^2+{B}^2+{C}^2-{A}*{B}-{A}*{C}-{B}*{C})/18",
+        f"Var = <b>{(A**2+B**2+C**2-A*B-A*C-B*C)/18:.4f}</b>, σ = <b>{math.sqrt((A**2+B**2+C**2-A*B-A*C-B*C)/18):.4f}</b>",
+    )
+    prob_card(
+        3, "Peak density",
+        "Height of the PDF at the mode c.",
+        f"=2/({B}-{A})",
+        f"f(c) = <b>{2/(B-A):.4f}</b>",
+    )
+    prob_card(
+        4, "P(X ≤ 18)",
+        "Probability that cost does not exceed ₹18 crore.",
+        f"=IF(18&lt;={C}, (18-{A})^2/(({B}-{A})*({C}-{A})), 1-({B}-18)^2/(({B}-{A})*({B}-{C})))",
+        f"F(18) = <b>{rvP.cdf(18):.6f}</b>",
+    )
+    prob_card(
+        5, "P(12 ≤ X ≤ 25)",
+        "Probability cost falls inside a mid-range band.",
+        f"=F(25) - F(12)  (evaluate each using the CDF IF formula)",
+        f"P(12 ≤ X ≤ 25) = F(25) − F(12) = <b>{rvP.cdf(25) - rvP.cdf(12):.6f}</b>",
+    )
+    prob_card(
+        6, "P(X > 22) — cost overrun risk",
+        "Right-tail probability of exceeding ₹22 crore.",
+        f"=1 - IF(22&lt;={C}, (22-{A})^2/(({B}-{A})*({C}-{A})), 1-({B}-22)^2/(({B}-{A})*({B}-{C})))",
+        f"P(X &gt; 22) = <b>{1 - rvP.cdf(22):.6f}</b>",
+    )
+    prob_card(
+        7, "Median",
+        "Because c < (a+b)/2 = 20, median is in the upper branch.",
+        f"={B}-SQRT(({B}-{A})*({B}-{C})/2)",
+        f"Median = <b>{B - math.sqrt((B-A)*(B-C)/2):.4f}</b>",
+    )
+    prob_card(
+        8, "95th-percentile (contingency reserve)",
+        "Find q such that F(q) = 0.95. Check which branch.",
+        f"=IF(0.95&lt;=({C}-{A})/({B}-{A}), {A}+SQRT(0.95*({B}-{A})*({C}-{A})), "
+        f"{B}-SQRT(0.05*({B}-{A})*({B}-{C})))",
+        f"q₀.₉₅ = <b>{rvP.ppf(0.95):.4f}</b>",
+    )
+    prob_card(
+        9, "Simulate one Monte-Carlo cost path",
+        "One realisation via inverse-CDF with a single RAND() call.",
+        f"=LET(u,RAND(), t,({C}-{A})/({B}-{A}), "
+        f"IF(u&lt;=t, {A}+SQRT(u*({B}-{A})*({C}-{A})), "
+        f"{B}-SQRT((1-u)*({B}-{A})*({B}-{C}))))",
+        "Copy down ≥10,000 rows → empirical mean ≈ 18.33, empirical 95% ≈ 25.5.",
+    )
+    prob_card(
+        10, "PERT vs Triangular mean",
+        "Compare Triangular mean with PERT approximation (a + 4c + b)/6.",
+        f"Tri: =({A}+{B}+{C})/3    |    PERT: =({A}+4*{C}+{B})/6",
+        f"Triangular = <b>{(A+B+C)/3:.4f}</b>, PERT = <b>{(A + 4*C + B)/6:.4f}</b> — PERT shifts weight toward the mode.",
+    )
+
+
+# ============================================================================
 # PAGE: FINANCE TOOLS (VaR + GBM)
 # ============================================================================
 def page_finance_tools():
@@ -1157,6 +1417,7 @@ def page_cheat_sheet():
             ["Std Normal(0,1)",     "=NORM.S.DIST(z,FALSE)",       "=NORM.S.DIST(z,TRUE)",        "=NORM.S.INV(α)"],
             ["Log-Normal(μ,σ)",    "=LOGNORM.DIST(x,μ,σ,FALSE)", "=LOGNORM.DIST(x,μ,σ,TRUE)",  "=LOGNORM.INV(α,μ,σ)"],
             ["Exponential(λ)",      "=EXPON.DIST(x,λ,FALSE)",      "=EXPON.DIST(x,λ,TRUE)",       "=-LN(1-α)/λ"],
+            ["Triangular(a,c,b)",   "IF-branch on c (see page)",   "IF-branch on c (see page)",   "Branched on α ≤ (c-a)/(b-a)"],
         ],
         columns=["Distribution", "PDF / PMF", "CDF", "Inverse / quantile"],
     )
@@ -1194,6 +1455,7 @@ def page_cheat_sheet():
             ["Standard Normal",     "=NORM.S.INV(RAND())"],
             ["Log-Normal",          "=LOGNORM.INV(RAND(),μ,σ)"],
             ["Exponential(λ)",      "=-LN(1-RAND())/λ"],
+            ["Triangular(a,c,b)",   "=LET(u,RAND(),t,(c-a)/(b-a),IF(u<=t,a+SQRT(u*(b-a)*(c-a)),b-SQRT((1-u)*(b-a)*(b-c))))"],
             ["GBM terminal Sₜ",     "=S0*EXP((r-0.5*v^2)*T+v*SQRT(T)*NORM.S.INV(RAND()))"],
         ],
         columns=["Target distribution", "Excel formula"],
@@ -1215,6 +1477,7 @@ PAGES = {
     "📈 Continuous: Normal": page_normal,
     "📈 Continuous: Log-Normal": page_lognormal,
     "📈 Continuous: Exponential": page_exponential,
+    "📈 Continuous: Triangular": page_triangular,
     "💼 Finance Tools (VaR / GBM)": page_finance_tools,
     "🧠 Practice Quiz": page_quiz,
     "📋 Excel Master Cheat Sheet": page_cheat_sheet,
